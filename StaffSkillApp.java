@@ -11,10 +11,11 @@ public class StaffSkillApp {
     Scanner sc = new Scanner(System.in);
     ArrayList<Staff> staffList = new ArrayList<>();
     ArrayList<Task> taskList = new ArrayList<>();
+    ArrayList<Skill> skillList = new ArrayList<>();
     while (true) {
       System.out.println("——操作を入力してください。——");
-      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 0/終了>");
-      int select = inputNumber(sc, 0, 4);
+      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 0/終了>");
+      int select = inputNumber(sc, 0, 5);
       switch (select) {
         case 1:
           addStaff(staffList, sc);
@@ -27,6 +28,9 @@ public class StaffSkillApp {
           break;
         case 4:
           displayTaskList(taskList);
+          break;
+        case 5:
+          updateSkill(skillList, staffList, taskList, sc);
           break;
         case 0:
           System.out.println("アプリケーションを終了します。");
@@ -93,6 +97,116 @@ public class StaffSkillApp {
         }
       }
     }
+  }
+
+  static void updateSkill(ArrayList<Skill> skillList, ArrayList<Staff> staffList, ArrayList<Task> taskList, Scanner sc) {
+    if (staffList.size() == 0) {
+      System.out.println("先にスタッフを登録してください。");
+      return;
+    }
+    if (taskList.size() == 0) {
+      System.out.println("先に仕事を登録してください。");
+      return;
+    }
+    System.out.println("スキルを登録・変更します。");
+    Staff staff = selectStaff(staffList, sc);
+    Task task = selectTask(taskList, sc);
+
+    Skill skill = findSkill(skillList, staff.id, task.id);
+    int currentLevel = 0;
+    if (skill != null) {
+      currentLevel = skill.level;
+    }
+    System.out.printf("%sさんの「%s」の今の習熟度:%s%n", staff.name, task.name, Skill.LEVEL_NAMES[currentLevel]);
+
+    System.out.println("新しい習熟度を番号で選んでください。");
+    for (int i = 0; i < Skill.LEVEL_NAMES.length; i++) {
+      System.out.printf("%d/%s ", i, Skill.LEVEL_NAMES[i]);
+    }
+    System.out.print(">>");
+    int level = inputNumber(sc, 0, Skill.LEVEL_NAMES.length - 1);
+
+    if (level == 0) {
+      if (skill != null) {
+        skillList.remove(skill);
+      }
+    } else if (skill == null) {
+      skillList.add(new Skill(staff.id, task.id, level, LocalDate.now()));
+    } else {
+      skill.changeLevel(level);
+    }
+    System.out.printf("%sさんの「%s」を「%s」にしました。%n", staff.name, task.name, Skill.LEVEL_NAMES[level]);
+    displayStaffSkills(staff, skillList, taskList);
+  }
+
+  static void displayStaffSkills(Staff staff, ArrayList<Skill> skillList, ArrayList<Task> taskList) {
+    System.out.println("【" + staff.name + "さんのスキル】");
+    boolean hasSkill = false;
+    for (int level = Skill.LEVEL_NAMES.length - 1; level >= 1; level--) {
+      for (Skill skill : skillList) {
+        if (skill.staffId == staff.id && skill.level == level) {
+          Task task = findTask(taskList, skill.taskId);
+          System.out.printf("  %s/%s:%s(更新日:%s)%n", task.position, task.name, Skill.LEVEL_NAMES[level], skill.updatedDate);
+          hasSkill = true;
+        }
+      }
+    }
+    if (!hasSkill) {
+      System.out.println("  まだスキルは登録されていません。");
+    }
+  }
+
+  static Staff selectStaff(ArrayList<Staff> staffList, Scanner sc) {
+    displayStaffList(staffList);
+    System.out.print("スタッフの番号を入力してください>>");
+    while (true) {
+      int id = inputNumber(sc, 1, nextStaffId - 1);
+      Staff staff = findStaff(staffList, id);
+      if (staff != null) {
+        return staff;
+      }
+      System.out.print("その番号のスタッフはいません。もう一度入力してください>>");
+    }
+  }
+
+  static Task selectTask(ArrayList<Task> taskList, Scanner sc) {
+    displayTaskList(taskList);
+    System.out.print("仕事の番号を入力してください>>");
+    while (true) {
+      int id = inputNumber(sc, 1, nextTaskId - 1);
+      Task task = findTask(taskList, id);
+      if (task != null) {
+        return task;
+      }
+      System.out.print("その番号の仕事はありません。もう一度入力してください>>");
+    }
+  }
+
+  static Staff findStaff(ArrayList<Staff> staffList, int id) {
+    for (Staff s : staffList) {
+      if (s.id == id) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  static Task findTask(ArrayList<Task> taskList, int id) {
+    for (Task t : taskList) {
+      if (t.id == id) {
+        return t;
+      }
+    }
+    return null;
+  }
+
+  static Skill findSkill(ArrayList<Skill> skillList, int staffId, int taskId) {
+    for (Skill skill : skillList) {
+      if (skill.staffId == staffId && skill.taskId == taskId) {
+        return skill;
+      }
+    }
+    return null;
   }
 
   static String selectPosition(Scanner sc, String label) {
