@@ -14,8 +14,8 @@ public class StaffSkillApp {
     ArrayList<Skill> skillList = new ArrayList<>();
     while (true) {
       System.out.println("——操作を入力してください。——");
-      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 0/終了>");
-      int select = inputNumber(sc, 0, 5);
+      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 6/仕事からできる人を探す 0/終了>");
+      int select = inputNumber(sc, 0, 6);
       switch (select) {
         case 1:
           addStaff(staffList, sc);
@@ -31,6 +31,9 @@ public class StaffSkillApp {
           break;
         case 5:
           updateSkill(skillList, staffList, taskList, sc);
+          break;
+        case 6:
+          searchStaffByTask(skillList, staffList, taskList, sc);
           break;
         case 0:
           System.out.println("アプリケーションを終了します。");
@@ -153,6 +156,37 @@ public class StaffSkillApp {
     }
     if (!hasSkill) {
       System.out.println("  まだスキルは登録されていません。");
+    }
+  }
+
+  static void searchStaffByTask(ArrayList<Skill> skillList, ArrayList<Staff> staffList, ArrayList<Task> taskList, Scanner sc) {
+    if (taskList.size() == 0) {
+      System.out.println("先に仕事を登録してください。");
+      return;
+    }
+    System.out.println("仕事からできる人を探します。");
+    Task task = selectTask(taskList, sc);
+
+    System.out.println("どの習熟度以上の人を表示しますか？");
+    for (int i = 1; i < Skill.LEVEL_NAMES.length; i++) {
+      System.out.printf("%d/%s以上 ", i, Skill.LEVEL_NAMES[i]);
+    }
+    System.out.print(">>");
+    int minLevel = inputNumber(sc, 1, Skill.LEVEL_NAMES.length - 1);
+
+    System.out.printf("【%s/%sが%s以上の人】%n", task.position, task.name, Skill.LEVEL_NAMES[minLevel]);
+    boolean found = false;
+    for (int level = Skill.LEVEL_NAMES.length - 1; level >= minLevel; level--) {
+      for (Skill skill : skillList) {
+        if (skill.taskId == task.id && skill.level == level) {
+          Staff staff = findStaff(staffList, skill.staffId);
+          System.out.printf("  %s(メイン:%s):%s(更新日:%s)%n", staff.name, staff.mainPosition, Skill.LEVEL_NAMES[level], skill.updatedDate);
+          found = true;
+        }
+      }
+    }
+    if (!found) {
+      System.out.println("  この条件に当てはまるスタッフはいません。");
     }
   }
 
