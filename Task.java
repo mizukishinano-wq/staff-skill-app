@@ -8,4 +8,8 @@ class Task {
     this.name = name;
     this.position = position;
   }
+
+  String toCSV() {
+    return String.format("%d,%s,%s", this.id, this.name, this.position);
+  }
 }

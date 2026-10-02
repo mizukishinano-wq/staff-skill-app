@@ -19,4 +19,8 @@ class Skill {
     this.level = level;
     this.updatedDate = LocalDate.now();
   }
+
+  String toCSV() {
+    return String.format("%d,%d,%d,%s", this.staffId, this.taskId, this.level, this.updatedDate);
+  }
 }

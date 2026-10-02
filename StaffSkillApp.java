@@ -1,17 +1,29 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 public class StaffSkillApp {
+  static final File STAFF_FILE = new File("staffs.csv");
+  static final File TASK_FILE = new File("tasks.csv");
+  static final File SKILL_FILE = new File("skills.csv");
+
   static int nextStaffId = 1;
   static int nextTaskId = 1;
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     Scanner sc = new Scanner(System.in);
-    ArrayList<Staff> staffList = new ArrayList<>();
-    ArrayList<Task> taskList = new ArrayList<>();
-    ArrayList<Skill> skillList = new ArrayList<>();
+    ArrayList<Staff> staffList = loadStaffFile(STAFF_FILE);
+    ArrayList<Task> taskList = loadTaskFile(TASK_FILE);
+    ArrayList<Skill> skillList = loadSkillFile(SKILL_FILE);
+    System.out.printf("スタッフ%d人、仕事%d件、スキル%d件を読み込みました。%n", staffList.size(), taskList.size(), skillList.size());
     while (true) {
       System.out.println("——操作を入力してください。——");
       System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 6/仕事からできる人を探す 0/終了>");
@@ -19,18 +31,21 @@ public class StaffSkillApp {
       switch (select) {
         case 1:
           addStaff(staffList, sc);
+          saveAll(staffList, taskList, skillList);
           break;
         case 2:
           displayStaffList(staffList);
           break;
         case 3:
           addTask(taskList, sc);
+          saveAll(staffList, taskList, skillList);
           break;
         case 4:
           displayTaskList(taskList);
           break;
         case 5:
           updateSkill(skillList, staffList, taskList, sc);
+          saveAll(staffList, taskList, skillList);
           break;
         case 6:
           searchStaffByTask(skillList, staffList, taskList, sc);
@@ -45,7 +60,7 @@ public class StaffSkillApp {
   static void addStaff(ArrayList<Staff> staffList, Scanner sc) {
     System.out.println("新しいスタッフを登録します。");
     System.out.print("名前を入力してください>>");
-    String name = sc.next();
+    String name = inputText(sc);
     String mainPosition = selectPosition(sc, "メインポジション");
     LocalDate joinDate = inputDate(sc);
     Staff s = new Staff(nextStaffId, name, mainPosition, joinDate);
@@ -68,7 +83,7 @@ public class StaffSkillApp {
   static void addTask(ArrayList<Task> taskList, Scanner sc) {
     System.out.println("新しい仕事を登録します。");
     System.out.print("仕事名を入力してください>>");
-    String name = sc.next();
+    String name = inputText(sc);
     String position = selectPosition(sc, "ポジション");
     for (Task t : taskList) {
       if (t.name.equals(name) && t.position.equals(position)) {
@@ -253,6 +268,16 @@ public class StaffSkillApp {
     return Position.NAMES[no - 1];
   }
 
+  static String inputText(Scanner sc) {
+    while (true) {
+      String text = sc.next();
+      if (!text.contains(",")) {
+        return text;
+      }
+      System.out.print("「,」は使えません。もう一度入力してください>>");
+    }
+  }
+
   static LocalDate inputDate(Scanner sc) {
     System.out.print("入店日を入力してください(例:2026-04-01)>>");
     while (true) {
@@ -263,6 +288,97 @@ public class StaffSkillApp {
         System.out.print("日付の形式が正しくありません。2026-04-01の形で入力してください>>");
       }
     }
+  }
+
+  static ArrayList<Staff> loadStaffFile(File file) throws Exception {
+    ArrayList<Staff> list = new ArrayList<>();
+    if (!file.exists()) {
+      return list;
+    }
+    BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+    String line;
+    while ((line = br.readLine()) != null) {
+      String[] values = line.split(",");
+      int id = Integer.parseInt(values[0]);
+      String name = values[1];
+      String mainPosition = values[2];
+      LocalDate joinDate = LocalDate.parse(values[3]);
+      list.add(new Staff(id, name, mainPosition, joinDate));
+      if (id >= nextStaffId) {
+        nextStaffId = id + 1;
+      }
+    }
+    br.close();
+    return list;
+  }
+
+  static ArrayList<Task> loadTaskFile(File file) throws Exception {
+    ArrayList<Task> list = new ArrayList<>();
+    if (!file.exists()) {
+      return list;
+    }
+    BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+    String line;
+    while ((line = br.readLine()) != null) {
+      String[] values = line.split(",");
+      int id = Integer.parseInt(values[0]);
+      String name = values[1];
+      String position = values[2];
+      list.add(new Task(id, name, position));
+      if (id >= nextTaskId) {
+        nextTaskId = id + 1;
+      }
+    }
+    br.close();
+    return list;
+  }
+
+  static ArrayList<Skill> loadSkillFile(File file) throws Exception {
+    ArrayList<Skill> list = new ArrayList<>();
+    if (!file.exists()) {
+      return list;
+    }
+    BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+    String line;
+    while ((line = br.readLine()) != null) {
+      String[] values = line.split(",");
+      int staffId = Integer.parseInt(values[0]);
+      int taskId = Integer.parseInt(values[1]);
+      int level = Integer.parseInt(values[2]);
+      LocalDate updatedDate = LocalDate.parse(values[3]);
+      list.add(new Skill(staffId, taskId, level, updatedDate));
+    }
+    br.close();
+    return list;
+  }
+
+  static void saveAll(ArrayList<Staff> staffList, ArrayList<Task> taskList, ArrayList<Skill> skillList) throws Exception {
+    ArrayList<String> staffLines = new ArrayList<>();
+    for (Staff s : staffList) {
+      staffLines.add(s.toCSV());
+    }
+    saveFile(STAFF_FILE, staffLines);
+
+    ArrayList<String> taskLines = new ArrayList<>();
+    for (Task t : taskList) {
+      taskLines.add(t.toCSV());
+    }
+    saveFile(TASK_FILE, taskLines);
+
+    ArrayList<String> skillLines = new ArrayList<>();
+    for (Skill skill : skillList) {
+      skillLines.add(skill.toCSV());
+    }
+    saveFile(SKILL_FILE, skillLines);
+  }
+
+  static void saveFile(File file, ArrayList<String> lines) throws Exception {
+    BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
+    for (String line : lines) {
+      bw.write(line);
+      bw.newLine();
+    }
+    bw.close();
   }
 
   static int inputNumber(Scanner sc, int min, int max) {
