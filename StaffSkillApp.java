@@ -26,8 +26,8 @@ public class StaffSkillApp {
     System.out.printf("スタッフ%d人、仕事%d件、スキル%d件を読み込みました。%n", staffList.size(), taskList.size(), skillList.size());
     while (true) {
       System.out.println("——操作を入力してください。——");
-      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 6/仕事からできる人を探す 0/終了>");
-      int select = inputNumber(sc, 0, 6);
+      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 6/仕事からできる人を探す 7/スキルマップ 0/終了>");
+      int select = inputNumber(sc, 0, 7);
       switch (select) {
         case 1:
           addStaff(staffList, sc);
@@ -49,6 +49,9 @@ public class StaffSkillApp {
           break;
         case 6:
           searchStaffByTask(skillList, staffList, taskList, sc);
+          break;
+        case 7:
+          displaySkillMap(skillList, staffList, taskList, sc);
           break;
         case 0:
           System.out.println("アプリケーションを終了します。");
@@ -203,6 +206,85 @@ public class StaffSkillApp {
     if (!found) {
       System.out.println("  この条件に当てはまるスタッフはいません。");
     }
+  }
+
+  static void displaySkillMap(ArrayList<Skill> skillList, ArrayList<Staff> staffList, ArrayList<Task> taskList, Scanner sc) {
+    if (staffList.size() == 0) {
+      System.out.println("先にスタッフを登録してください。");
+      return;
+    }
+    if (taskList.size() == 0) {
+      System.out.println("先に仕事を登録してください。");
+      return;
+    }
+    System.out.println("表示するポジションを番号で選んでください。");
+    System.out.print("0/全て ");
+    for (int i = 0; i < Position.NAMES.length; i++) {
+      System.out.printf("%d/%s ", i + 1, Position.NAMES[i]);
+    }
+    System.out.print(">>");
+    int no = inputNumber(sc, 0, Position.NAMES.length);
+
+    ArrayList<Task> mapTasks = new ArrayList<>();
+    for (String position : Position.NAMES) {
+      if (no != 0 && !position.equals(Position.NAMES[no - 1])) {
+        continue;
+      }
+      for (Task t : taskList) {
+        if (t.position.equals(position)) {
+          mapTasks.add(t);
+        }
+      }
+    }
+    if (mapTasks.size() == 0) {
+      System.out.println("このポジションの仕事はまだ登録されていません。");
+      return;
+    }
+
+    int nameWidth = displayWidth("名前");
+    for (Staff s : staffList) {
+      nameWidth = Math.max(nameWidth, displayWidth(s.name));
+    }
+
+    String title = "全て";
+    if (no != 0) {
+      title = Position.NAMES[no - 1];
+    }
+    System.out.println("【スキルマップ:" + title + "】");
+    System.out.print(padRight("名前", nameWidth) + "  ");
+    for (Task t : mapTasks) {
+      System.out.print(padRight(t.name, displayWidth(t.name)) + "  ");
+    }
+    System.out.println();
+    for (Staff s : staffList) {
+      System.out.print(padRight(s.name, nameWidth) + "  ");
+      for (Task t : mapTasks) {
+        Skill skill = findSkill(skillList, s.id, t.id);
+        String cell = "-";
+        if (skill != null) {
+          cell = String.valueOf(skill.level);
+        }
+        System.out.print(padRight(cell, displayWidth(t.name)) + "  ");
+      }
+      System.out.println();
+    }
+    System.out.println("(3:教えられる 2:1人でできる 1:教わった -:未経験)");
+  }
+
+  static int displayWidth(String text) {
+    int width = 0;
+    for (char c : text.toCharArray()) {
+      if (c < 0x80 || (c >= 0xFF61 && c <= 0xFF9F)) {
+        width += 1;
+      } else {
+        width += 2;
+      }
+    }
+    return width;
+  }
+
+  static String padRight(String text, int width) {
+    return text + " ".repeat(width - displayWidth(text));
   }
 
   static Staff selectStaff(ArrayList<Staff> staffList, Scanner sc) {
