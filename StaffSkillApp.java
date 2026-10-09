@@ -23,11 +23,12 @@ public class StaffSkillApp {
     ArrayList<Staff> staffList = loadStaffFile(STAFF_FILE);
     ArrayList<Task> taskList = loadTaskFile(TASK_FILE);
     ArrayList<Skill> skillList = loadSkillFile(SKILL_FILE);
-    System.out.printf("スタッフ%d人、仕事%d件、スキル%d件を読み込みました。%n", staffList.size(), taskList.size(), skillList.size());
+    System.out.printf("スタッフ%d人（在籍%d人、退職%d人）、仕事%d件、スキル%d件を読み込みました。%n",
+        staffList.size(), activeCount(staffList), staffList.size() - activeCount(staffList), taskList.size(), skillList.size());
     while (true) {
       System.out.println("——操作を入力してください。——");
-      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 6/仕事からできる人を探す 7/スキルマップ 0/終了>");
-      int select = inputNumber(sc, 0, 7);
+      System.out.print("1/スタッフ登録 2/スタッフ一覧 3/仕事登録 4/仕事一覧 5/スキル登録・変更 6/仕事からできる人を探す 7/スキルマップ 8/退職にする 0/終了>");
+      int select = inputNumber(sc, 0, 8);
       switch (select) {
         case 1:
           addStaff(staffList, sc);
@@ -53,6 +54,11 @@ public class StaffSkillApp {
         case 7:
           displaySkillMap(skillList, staffList, taskList, sc);
           break;
+        case 8:
+          if (retireStaff(staffList, sc)) {
+            saveAll(staffList, taskList, skillList);
+          }
+          break;
         case 0:
           System.out.println("アプリケーションを終了します。");
           return;
@@ -72,14 +78,42 @@ public class StaffSkillApp {
     System.out.println(name + "さんを登録しました。");
   }
 
+  static boolean retireStaff(ArrayList<Staff> staffList, Scanner sc) {
+    if (activeCount(staffList) == 0) {
+      System.out.println("在籍中のスタッフはいません。");
+      return false;
+    }
+    System.out.println("退職にするスタッフを選びます。");
+    Staff staff = selectStaff(staffList, sc);
+    staff.active = false;
+    System.out.println(staff.name + "さんを退職にしました。一覧、検索、スキルマップには表示されません。");
+    return true;
+  }
+
+  static int activeCount(ArrayList<Staff> staffList) {
+    int count = 0;
+    for (Staff s : staffList) {
+      if (s.active) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   static void displayStaffList(ArrayList<Staff> staffList) {
     if (staffList.size() == 0) {
       System.out.println("スタッフはまだ登録されていません。");
       return;
     }
+    if (activeCount(staffList) == 0) {
+      System.out.println("在籍中のスタッフはいません。");
+      return;
+    }
     System.out.println("【スタッフ一覧】");
     for (Staff s : staffList) {
-      System.out.printf("%d・・・%s%n", s.id, s.showStatus());
+      if (s.active) {
+        System.out.printf("%d・・・%s%n", s.id, s.showStatus());
+      }
     }
   }
 
@@ -125,6 +159,10 @@ public class StaffSkillApp {
       System.out.println("先にスタッフを登録してください。");
       return;
     }
+    if (activeCount(staffList) == 0) {
+      System.out.println("在籍中のスタッフはいません。");
+      return;
+    }
     if (taskList.size() == 0) {
       System.out.println("先に仕事を登録してください。");
       return;
@@ -138,7 +176,7 @@ public class StaffSkillApp {
     if (skill != null) {
       currentLevel = skill.level;
     }
-    System.out.printf("%sさんの「%s」の今の習熟度:%s%n", staff.name, task.name, Skill.LEVEL_NAMES[currentLevel]);
+    System.out.printf("%sさんの「%s」の今の習熟度:%s%n", staff.displayName(), task.name, Skill.LEVEL_NAMES[currentLevel]);
 
     System.out.println("新しい習熟度を番号で選んでください。");
     for (int i = 0; i < Skill.LEVEL_NAMES.length; i++) {
@@ -156,12 +194,12 @@ public class StaffSkillApp {
     } else {
       skill.changeLevel(level);
     }
-    System.out.printf("%sさんの「%s」を「%s」にしました。%n", staff.name, task.name, Skill.LEVEL_NAMES[level]);
+    System.out.printf("%sさんの「%s」を「%s」にしました。%n", staff.displayName(), task.name, Skill.LEVEL_NAMES[level]);
     displayStaffSkills(staff, skillList, taskList);
   }
 
   static void displayStaffSkills(Staff staff, ArrayList<Skill> skillList, ArrayList<Task> taskList) {
-    System.out.println("【" + staff.name + "さんのスキル】");
+    System.out.println("【" + staff.displayName() + "さんのスキル】");
     boolean hasSkill = false;
     for (int level = Skill.LEVEL_NAMES.length - 1; level >= 1; level--) {
       for (Skill skill : skillList) {
@@ -198,7 +236,10 @@ public class StaffSkillApp {
       for (Skill skill : skillList) {
         if (skill.taskId == task.id && skill.level == level) {
           Staff staff = findStaff(staffList, skill.staffId);
-          System.out.printf("  %s(メイン:%s):%s(更新日:%s)%n", staff.name, staff.mainPosition, Skill.LEVEL_NAMES[level], skill.updatedDate);
+          if (staff == null || !staff.active) {
+            continue;
+          }
+          System.out.printf("  %s(メイン:%s):%s(更新日:%s)%n", staff.displayName(), staff.mainPosition, Skill.LEVEL_NAMES[level], skill.updatedDate);
           found = true;
         }
       }
@@ -211,6 +252,10 @@ public class StaffSkillApp {
   static void displaySkillMap(ArrayList<Skill> skillList, ArrayList<Staff> staffList, ArrayList<Task> taskList, Scanner sc) {
     if (staffList.size() == 0) {
       System.out.println("先にスタッフを登録してください。");
+      return;
+    }
+    if (activeCount(staffList) == 0) {
+      System.out.println("在籍中のスタッフはいません。");
       return;
     }
     if (taskList.size() == 0) {
@@ -243,7 +288,9 @@ public class StaffSkillApp {
 
     int nameWidth = displayWidth("名前");
     for (Staff s : staffList) {
-      nameWidth = Math.max(nameWidth, displayWidth(s.name));
+      if (s.active) {
+        nameWidth = Math.max(nameWidth, displayWidth(s.displayName()));
+      }
     }
 
     String title = "全て";
@@ -257,7 +304,10 @@ public class StaffSkillApp {
     }
     System.out.println();
     for (Staff s : staffList) {
-      System.out.print(padRight(s.name, nameWidth) + "  ");
+      if (!s.active) {
+        continue;
+      }
+      System.out.print(padRight(s.displayName(), nameWidth) + "  ");
       for (Task t : mapTasks) {
         Skill skill = findSkill(skillList, s.id, t.id);
         String cell = "-";
@@ -293,8 +343,12 @@ public class StaffSkillApp {
     while (true) {
       int id = inputNumber(sc, 1, nextStaffId - 1);
       Staff staff = findStaff(staffList, id);
-      if (staff != null) {
+      if (staff != null && staff.active) {
         return staff;
+      }
+      if (staff != null) {
+        System.out.print("そのスタッフは退職済みです。在籍中の番号を入力してください>>");
+        continue;
       }
       System.out.print("その番号のスタッフはいません。もう一度入力してください>>");
     }
@@ -385,7 +439,11 @@ public class StaffSkillApp {
       String name = values[1];
       String mainPosition = values[2];
       LocalDate joinDate = LocalDate.parse(values[3]);
-      list.add(new Staff(id, name, mainPosition, joinDate));
+      Staff staff = new Staff(id, name, mainPosition, joinDate);
+      if (values.length >= 5 && values[4].equals("退職")) {
+        staff.active = false;
+      }
+      list.add(staff);
       if (id >= nextStaffId) {
         nextStaffId = id + 1;
       }
